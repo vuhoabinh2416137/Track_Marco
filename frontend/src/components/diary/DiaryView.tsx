@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Trash2, ChevronLeft, ChevronRight, Calendar, Coffee, Sun, Sunset, Cookie } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Calendar, Coffee, Sun, Sunset, Cookie, X } from 'lucide-react';
 import { DailySummary, MealLog } from '@/lib/types';
 import { api } from '@/lib/api';
 
@@ -20,6 +20,25 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
   onOpenAddModal,
   onRefresh,
 }) => {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(() => {
+    const parts = currentDate.split('-');
+    return parseInt(parts[0], 10) || new Date().getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    const parts = currentDate.split('-');
+    return (parseInt(parts[1], 10) || (new Date().getMonth() + 1)) - 1;
+  });
+
+  // Đồng bộ viewYear / viewMonth khi currentDate thay đổi
+  useEffect(() => {
+    const parts = currentDate.split('-');
+    if (parts.length === 3) {
+      setViewYear(parseInt(parts[0], 10));
+      setViewMonth(parseInt(parts[1], 10) - 1);
+    }
+  }, [currentDate]);
+
   const mealSections = [
     { type: 'BREAKFAST', label: 'Bữa Sáng', icon: Coffee, color: 'text-amber-400' },
     { type: 'LUNCH', label: 'Bữa Trưa', icon: Sun, color: 'text-orange-400' },
@@ -37,18 +56,51 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
   };
 
   const handlePrevDay = () => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() - 1);
-    onDateChange(d.toISOString().split('T')[0]);
+    const [y, m, d] = currentDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() - 1);
+    const yStr = dateObj.getFullYear();
+    const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dStr = String(dateObj.getDate()).padStart(2, '0');
+    onDateChange(`${yStr}-${mStr}-${dStr}`);
   };
 
   const handleNextDay = () => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + 1);
-    onDateChange(d.toISOString().split('T')[0]);
+    const [y, m, d] = currentDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + 1);
+    const yStr = dateObj.getFullYear();
+    const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dStr = String(dateObj.getDate()).padStart(2, '0');
+    onDateChange(`${yStr}-${mStr}-${dStr}`);
   };
 
-  const isToday = currentDate === new Date().toISOString().split('T')[0];
+  const handlePrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const now = new Date();
+  const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const isToday = currentDate === todayYmd;
+
+  // Tính lịch ngày trong tháng (Thứ 2 = 0 ... Chủ Nhật = 6)
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const startOffset = (firstDay + 6) % 7;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
   return (
     <div className="space-y-4">
@@ -64,27 +116,22 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
 
         {/* Interactive Date Picker Button */}
         <div className="flex items-center gap-1.5">
-          <label className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1A1D2A] hover:bg-[#222638] border border-border/80 cursor-pointer transition-all active:scale-95 shadow-sm">
-            <Calendar className="w-4 h-4 text-brand-blue shrink-0" />
+          <button
+            type="button"
+            onClick={() => setIsCalendarOpen(true)}
+            title="Bấm để mở danh sách lịch chọn ngày"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1A1D2A] hover:bg-[#222638] border border-border/80 cursor-pointer transition-all active:scale-95 shadow-sm group"
+          >
+            <Calendar className="w-4 h-4 text-brand-blue shrink-0 group-hover:scale-110 transition-transform" />
             <span className="font-bold text-sm text-white font-mono select-none">
               {isToday ? `Hôm Nay (${currentDate})` : currentDate}
             </span>
-            <input
-              type="date"
-              value={currentDate}
-              onChange={(e) => {
-                if (e.target.value) {
-                  onDateChange(e.target.value);
-                }
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-          </label>
+          </button>
 
           {!isToday && (
             <button
-              onClick={() => onDateChange(new Date().toISOString().split('T')[0])}
-              className="px-2 py-1.5 rounded-xl bg-brand-blue/15 text-brand-blue text-[11px] font-bold hover:bg-brand-blue/25 transition-colors"
+              onClick={() => onDateChange(todayYmd)}
+              className="px-2.5 py-1.5 rounded-xl bg-brand-blue/15 text-brand-blue text-[11px] font-bold hover:bg-brand-blue/25 transition-colors"
             >
               Hôm nay
             </button>
@@ -99,6 +146,110 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
+
+      {/* Calendar Picker Modal / Dialog */}
+      {isCalendarOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsCalendarOpen(false)}
+        >
+          <div
+            className="w-full max-w-xs bg-[#121522] border border-border/90 rounded-3xl p-4 shadow-2xl space-y-3.5 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Calendar Month Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                title="Tháng trước"
+                className="w-8 h-8 rounded-xl bg-[#1A1D2A] hover:bg-[#252B42] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <span className="font-bold text-sm text-white tracking-wide">
+                Tháng {viewMonth + 1}, {viewYear}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                title="Tháng sau"
+                className="w-8 h-8 rounded-xl bg-[#1A1D2A] hover:bg-[#252B42] flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Weekdays Header */}
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-gray-400">
+              <span>T2</span>
+              <span>T3</span>
+              <span>T4</span>
+              <span>T5</span>
+              <span>T6</span>
+              <span>T7</span>
+              <span className="text-red-400">CN</span>
+            </div>
+
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: startOffset }).map((_, i) => (
+                <div key={`blank-${i}`} className="w-8 h-8" />
+              ))}
+
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isSelected = dStr === currentDate;
+                const isDayToday = dStr === todayYmd;
+
+                return (
+                  <button
+                    key={dStr}
+                    type="button"
+                    onClick={() => {
+                      onDateChange(dStr);
+                      setIsCalendarOpen(false);
+                    }}
+                    className={`w-8 h-8 rounded-xl text-xs font-mono flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'bg-brand-blue text-white font-bold shadow-md shadow-brand-blue/30 scale-105'
+                        : isDayToday
+                        ? 'border border-brand-blue text-brand-blue font-bold hover:bg-brand-blue/20'
+                        : 'text-gray-300 hover:bg-[#1A1D2A] hover:text-white'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions Footer */}
+            <div className="flex gap-2 pt-2 border-t border-border/60">
+              <button
+                type="button"
+                onClick={() => {
+                  onDateChange(todayYmd);
+                  setIsCalendarOpen(false);
+                }}
+                className="flex-1 py-1.5 rounded-xl bg-brand-blue/15 text-brand-blue text-xs font-bold hover:bg-brand-blue/25 transition-colors"
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCalendarOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-[#1A1D2A] hover:bg-[#252B42] text-gray-400 hover:text-white text-xs font-medium transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4 Meals Sections */}
       <div className="space-y-3.5">
