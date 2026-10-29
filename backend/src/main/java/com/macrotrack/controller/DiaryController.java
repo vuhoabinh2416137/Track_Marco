@@ -29,6 +29,11 @@ public class DiaryController {
         return ResponseEntity.ok(diaryService.logMeal(mealLog));
     }
 
+    @PutMapping("/meals/{id}")
+    public ResponseEntity<MealLog> updateMeal(@PathVariable Long id, @RequestBody MealLog mealLog) {
+        return ResponseEntity.ok(diaryService.updateMeal(id, mealLog));
+    }
+
     @DeleteMapping("/meals/{id}")
     public ResponseEntity<Void> deleteMeal(@PathVariable Long id) {
         diaryService.deleteMeal(id);

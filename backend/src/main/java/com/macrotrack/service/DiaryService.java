@@ -82,6 +82,20 @@ public class DiaryService {
     }
 
     @Transactional
+    public MealLog updateMeal(Long id, MealLog updated) {
+        MealLog existing = mealLogRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy món ăn id: " + id));
+        if (updated.getServings() > 0) existing.setServings(updated.getServings());
+        if (updated.getCalories() >= 0) existing.setCalories(updated.getCalories());
+        if (updated.getProteinG() >= 0) existing.setProteinG(updated.getProteinG());
+        if (updated.getCarbsG() >= 0) existing.setCarbsG(updated.getCarbsG());
+        if (updated.getFatG() >= 0) existing.setFatG(updated.getFatG());
+        if (updated.getFoodName() != null && !updated.getFoodName().isBlank()) existing.setFoodName(updated.getFoodName());
+        if (updated.getMealType() != null && !updated.getMealType().isBlank()) existing.setMealType(updated.getMealType());
+        return mealLogRepository.save(existing);
+    }
+
+    @Transactional
     public void deleteMeal(Long id) {
         mealLogRepository.deleteById(id);
     }

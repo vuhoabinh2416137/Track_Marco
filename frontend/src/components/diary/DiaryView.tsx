@@ -1,7 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ChevronLeft, ChevronRight, Calendar, Coffee, Sun, Sunset, Cookie, X } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Coffee,
+  Sun,
+  Sunset,
+  Cookie,
+  X,
+  Minus,
+  Check,
+  Pencil,
+} from 'lucide-react';
 import { DailySummary, MealLog } from '@/lib/types';
 import { api } from '@/lib/api';
 
@@ -30,6 +44,11 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
     return (parseInt(parts[1], 10) || (new Date().getMonth() + 1)) - 1;
   });
 
+  // State for Editing Logged Meal Servings
+  const [editingMeal, setEditingMeal] = useState<MealLog | null>(null);
+  const [editServings, setEditServings] = useState<number>(1.0);
+  const [editServingsInput, setEditServingsInput] = useState<string>('1');
+
   // Đồng bộ viewYear / viewMonth khi currentDate thay đổi
   useEffect(() => {
     const parts = currentDate.split('-');
@@ -39,41 +58,71 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
     }
   }, [currentDate]);
 
-  const mealSections = [
-    { type: 'BREAKFAST', label: 'Bữa Sáng', icon: Coffee, color: 'text-amber-400' },
-    { type: 'LUNCH', label: 'Bữa Trưa', icon: Sun, color: 'text-orange-400' },
-    { type: 'DINNER', label: 'Bữa Tối', icon: Sunset, color: 'text-purple-400' },
-    { type: 'SNACK', label: 'Bữa Phụ', icon: Cookie, color: 'text-emerald-400' },
-  ] as const;
+  const handlePrevDay = () => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - 1);
+    onDateChange(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + 1);
+    onDateChange(d.toISOString().split('T')[0]);
+  };
 
   const handleDeleteMeal = async (id: number) => {
-    try {
+    if (confirm('Bạn có chắc chắn muốn xóa món này?')) {
       await api.deleteMeal(id);
+      onRefresh();
+    }
+  };
+
+  const openEditMeal = (meal: MealLog) => {
+    setEditingMeal(meal);
+    const s = meal.servings > 0 ? meal.servings : 1.0;
+    setEditServings(s);
+    setEditServingsInput(String(s));
+  };
+
+  const handleEditServingsChange = (val: string) => {
+    setEditServingsInput(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0) {
+      setEditServings(num);
+    }
+  };
+
+  const stepEditServing = (delta: number) => {
+    const next = Math.max(0.1, Math.round((editServings + delta) * 10) / 10);
+    setEditServings(next);
+    setEditServingsInput(String(next));
+  };
+
+  const handleSaveMealUpdate = async () => {
+    if (!editingMeal || !editingMeal.id) return;
+    const baseServings = editingMeal.servings > 0 ? editingMeal.servings : 1.0;
+    const ratio = editServings / baseServings;
+    try {
+      await api.updateMeal(editingMeal.id, {
+        servings: editServings,
+        calories: Math.round(editingMeal.calories * ratio * 10) / 10,
+        proteinG: Math.round(editingMeal.proteinG * ratio * 10) / 10,
+        carbsG: Math.round(editingMeal.carbsG * ratio * 10) / 10,
+        fatG: Math.round(editingMeal.fatG * ratio * 10) / 10,
+      });
+      setEditingMeal(null);
       onRefresh();
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handlePrevDay = () => {
-    const [y, m, d] = currentDate.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    dateObj.setDate(dateObj.getDate() - 1);
-    const yStr = dateObj.getFullYear();
-    const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const dStr = String(dateObj.getDate()).padStart(2, '0');
-    onDateChange(`${yStr}-${mStr}-${dStr}`);
-  };
-
-  const handleNextDay = () => {
-    const [y, m, d] = currentDate.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    dateObj.setDate(dateObj.getDate() + 1);
-    const yStr = dateObj.getFullYear();
-    const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const dStr = String(dateObj.getDate()).padStart(2, '0');
-    onDateChange(`${yStr}-${mStr}-${dStr}`);
-  };
+  const mealSections = [
+    { type: 'BREAKFAST', label: 'Bữa Sáng', icon: Coffee, color: 'text-amber-400' },
+    { type: 'LUNCH', label: 'Bữa Trưa', icon: Sun, color: 'text-orange-400' },
+    { type: 'DINNER', label: 'Bữa Tối', icon: Sunset, color: 'text-indigo-400' },
+    { type: 'SNACK', label: 'Bữa Phụ', icon: Cookie, color: 'text-teal-400' },
+  ] as const;
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {
@@ -101,6 +150,13 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const startOffset = (firstDay + 6) % 7;
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  // Calculated macros for editing meal
+  const editRatio = editingMeal ? editServings / (editingMeal.servings > 0 ? editingMeal.servings : 1.0) : 1.0;
+  const editCalories = editingMeal ? Math.round(editingMeal.calories * editRatio) : 0;
+  const editProtein = editingMeal ? Math.round(editingMeal.proteinG * editRatio * 10) / 10 : 0;
+  const editCarbs = editingMeal ? Math.round(editingMeal.carbsG * editRatio * 10) / 10 : 0;
+  const editFat = editingMeal ? Math.round(editingMeal.fatG * editRatio * 10) / 10 : 0;
 
   return (
     <div className="space-y-4">
@@ -251,6 +307,143 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
         </div>
       )}
 
+      {/* Edit Logged Meal Servings Modal */}
+      {editingMeal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setEditingMeal(null)}
+        >
+          <div
+            className="bg-[#121522] border border-border/90 rounded-3xl w-full max-w-sm p-4 sm:p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-border/60 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white tracking-tight">
+                  Chỉnh sửa số lượng
+                </h3>
+                <p className="text-xs text-brand-blue font-semibold mt-0.5">
+                  {editingMeal.foodName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMeal(null)}
+                className="w-8 h-8 rounded-full bg-[#1A1D2A] hover:bg-[#252B40] flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Stepper & Input */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 bg-[#181B28] p-2.5 rounded-2xl border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => stepEditServing(-0.5)}
+                  className="w-10 h-10 rounded-xl bg-[#22273A] hover:bg-[#2C334D] text-white flex items-center justify-center font-bold text-lg active:scale-95 transition-all"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+
+                <div className="flex-1 flex flex-col items-center">
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="100"
+                      value={editServingsInput}
+                      onChange={(e) => handleEditServingsChange(e.target.value)}
+                      className="w-20 text-center font-mono font-black text-2xl text-white bg-transparent border-b border-brand-blue/60 focus:border-brand-blue focus:outline-none pb-0.5"
+                    />
+                    <span className="text-xs text-gray-400 font-semibold">phần</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => stepEditServing(0.5)}
+                  className="w-10 h-10 rounded-xl bg-[#22273A] hover:bg-[#2C334D] text-white flex items-center justify-center font-bold text-lg active:scale-95 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Preset Chips */}
+              <div className="flex items-center justify-between gap-1.5">
+                {[0.5, 1.0, 1.5, 2.0, 3.0].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      setEditServings(val);
+                      setEditServingsInput(String(val));
+                    }}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                      editServings === val
+                        ? 'bg-brand-blue text-white shadow-md shadow-brand-blue/30 scale-105'
+                        : 'bg-[#181B28] hover:bg-[#22273A] text-gray-300'
+                    }`}
+                  >
+                    {val}x
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Macro Breakdown */}
+            <div className="bg-[#181B28] border border-border/80 rounded-2xl p-3 space-y-2">
+              <div className="flex items-baseline justify-between border-b border-border/50 pb-2">
+                <span className="text-xs text-gray-400 font-semibold">Calo sau điều chỉnh:</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-white font-mono">{editCalories}</span>
+                  <span className="text-xs text-gray-400 font-semibold">kcal</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-xs pt-0.5">
+                <div className="bg-[#121522] p-2 rounded-xl border border-brand-blue/20">
+                  <span className="text-[10px] text-gray-400 block mb-0.5">Đạm (P)</span>
+                  <span className="font-mono font-bold text-macro-protein">{editProtein}g</span>
+                </div>
+                <div className="bg-[#121522] p-2 rounded-xl border border-brand-cyan/20">
+                  <span className="text-[10px] text-gray-400 block mb-0.5">Carb (C)</span>
+                  <span className="font-mono font-bold text-macro-carbs">{editCarbs}g</span>
+                </div>
+                <div className="bg-[#121522] p-2 rounded-xl border border-brand-amber/20">
+                  <span className="text-[10px] text-gray-400 block mb-0.5">Béo (F)</span>
+                  <span className="font-mono font-bold text-macro-fat">{editFat}g</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const id = editingMeal.id;
+                  setEditingMeal(null);
+                  if (id) handleDeleteMeal(id);
+                }}
+                className="px-3.5 py-2.5 rounded-2xl bg-red-500/15 text-red-400 hover:bg-red-500/25 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Xóa món
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMealUpdate}
+                className="flex-1 py-2.5 rounded-2xl bg-brand-blue hover:bg-brand-blue/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+              >
+                <Check className="w-4 h-4" /> Lưu thay đổi ({editCalories} kcal)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 4 Meals Sections */}
       <div className="space-y-3.5">
         {mealSections.map((sec) => {
@@ -297,11 +490,21 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
                   {meals.map((item) => (
                     <div
                       key={item.id}
-                      className="p-2 rounded-xl bg-[#161926] flex items-center justify-between text-xs"
+                      onClick={() => openEditMeal(item)}
+                      className="p-2.5 rounded-2xl bg-[#161926] hover:bg-[#1C2032] border border-border/50 flex items-center justify-between text-xs cursor-pointer group transition-all"
                     >
                       <div className="flex-1 pr-2">
-                        <span className="text-gray-200 font-medium block">{item.foodName}</span>
-                        <span className="text-[10px] text-gray-400 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-200 font-semibold group-hover:text-brand-blue transition-colors">
+                            {item.foodName}
+                          </span>
+                          <Pencil className="w-3 h-3 text-gray-500 group-hover:text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-mono mt-0.5 block">
+                          <span className="text-brand-blue font-bold">
+                            {item.servings > 0 ? `${item.servings} phần` : '1 phần'}
+                          </span>
+                          {' • '}
                           {item.proteinG}g P • {item.carbsG}g C • {item.fatG}g F
                         </span>
                       </div>
@@ -311,8 +514,13 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
                           {Math.round(item.calories)} <span className="text-[9px] text-gray-400 font-normal">kcal</span>
                         </span>
                         <button
-                          onClick={() => handleDeleteMeal(item.id!)}
-                          className="text-gray-500 hover:text-red-400 p-1"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (item.id) handleDeleteMeal(item.id);
+                          }}
+                          className="w-6 h-6 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                          title="Xóa món"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

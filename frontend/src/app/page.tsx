@@ -234,6 +234,7 @@ export default function Home() {
       <FoodSearchModal
         isOpen={isFoodModalOpen}
         mealType={activeMealType}
+        logDate={currentDate}
         onClose={() => setIsFoodModalOpen(false)}
         onFoodAdded={loadData}
       />

@@ -45,6 +45,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(meal),
     }),
+  updateMeal: (id: number, meal: Partial<MealLog>) =>
+    fetchJson<MealLog>(`/diary/meals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(meal),
+    }),
   deleteMeal: (id: number) =>
     fetch(`${API_BASE}/diary/meals/${id}`, { method: 'DELETE' }),
 
