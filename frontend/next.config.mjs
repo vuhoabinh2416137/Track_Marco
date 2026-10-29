@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080').replace(/\/+$/, '');
+
 const nextConfig = {
   reactStrictMode: false,
   transpilePackages: ['lucide-react'],
@@ -6,9 +8,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: process.env.NEXT_PUBLIC_BACKEND_URL
-          ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/:path*`
-          : 'http://localhost:8080/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

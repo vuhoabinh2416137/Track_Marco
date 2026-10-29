@@ -125,7 +125,7 @@ export default function Home() {
         <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-between text-xs text-red-400">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            <span>Đang kết nối Backend Spring Boot (Cổng 8080)...</span>
+            <span>Đang kết nối máy chủ Cloud Backend...</span>
           </div>
           <button
             onClick={() => loadData()}
