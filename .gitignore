@@ -1,0 +1,42 @@
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+*.tsbuildinfo
+
+# Java / Maven
+backend/target/
+backend/.mvn/
+*.jar
+*.war
+*.class
+
+# IDE & Editor
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs and OS
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Test Screenshots (Keep repository clean)
+cdp_screenshot.png
+clean_screenshot.png
+test_*.png
+screen_*.png
